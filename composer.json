@@ -1,0 +1,39 @@
+{
+    "name" : "makinacorpus/amqp-patterns",
+    "type": "library",
+    "description": "Implementation of some AMQP 9.1 well known patterns using php-amqplib",
+    "keywords": ["amqp", "rabbitmq", "message-broker"],
+    "homepage": "http://github.com/makinacorpus/php-amqp-patterns",
+    "license": "GPL-2",
+    "authors": [
+        {
+            "name" : "Pierre RINEAU",
+            "email" : "pierre.rineau@makina-corpus.com",
+            "role": "Developer"
+        },
+        {
+            "name" : "Makina Corpus",
+            "homepage" : "https://www.makina-corpus.com"
+        }
+    ],
+    "minimum-stability" : "dev",
+    "prefer-stable" : true,
+    "autoload" : {
+        "psr-4" : {
+            "MakinaCorpus\\AMQP\\Patterns\\" : "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MakinaCorpus\\AMQP\\Patterns\\Sample\\": "sample/",
+            "MakinaCorpus\\AMQP\\Patterns\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php-amqplib/php-amqplib": "^2.10"
+    },
+    "require-dev": {
+        "symfony/console": "^4.3",
+        "symfony/dotenv": "^4.3"
+    }
+}
