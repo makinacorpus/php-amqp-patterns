@@ -93,9 +93,9 @@ final class PatternFactory
     /**
      * Create task publisher.
      */
-    public function createTaskPublisher(string $queue, ?string $exchange = null): TaskPublisher
+    public function createTaskPublisher(string $routingKey, ?string $exchange = null): TaskPublisher
     {
-        return new TaskPublisher($this->channel(), $queue, $exchange, true);
+        return new TaskPublisher($this->channel(), $routingKey, $exchange, true);
     }
 
     /**
@@ -109,16 +109,16 @@ final class PatternFactory
     /**
      * Create publish/subscribe-like publisher.
      */
-    public function createPublisher(string $exchange): Publisher
+    public function createFanoutPublisher(string $exchange): FanoutPublisher
     {
-        return new Publisher($this->channel(), $exchange, true);
+        return new FanoutPublisher($this->channel(), $exchange, true);
     }
 
     /**
      * Create publish/subscribe-like subscriber.
      */
-    public function createSubscriber(string $exchange): Subscriber
+    public function createFanoutSubscriber(string $exchange): FanoutSubscriber
     {
-        return new Subscriber($this->channel(), $exchange, true);
+        return new FanoutSubscriber($this->channel(), $exchange, true);
     }
 }

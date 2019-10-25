@@ -11,7 +11,7 @@ use PhpAmqpLib\Channel\AMQPChannel;
  *
  * @see https://www.rabbitmq.com/tutorials/tutorial-three-php.html
  */
-final class Subscriber
+final class FanoutSubscriber
 {
     use SignalHandler;
 
@@ -46,7 +46,7 @@ final class Subscriber
      * @param callback $callback
      *   First callback argument is the message
      */
-    public function callback(callable $callback): Subscriber
+    public function callback(callable $callback): FanoutSubscriber
     {
         if ($this->callback) {
             throw new \LogicException("You cannot call ::callback() twice");

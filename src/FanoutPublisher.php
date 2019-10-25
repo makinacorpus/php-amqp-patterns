@@ -12,7 +12,7 @@ use PhpAmqpLib\Message\AMQPMessage;
  *
  * @see https://www.rabbitmq.com/tutorials/tutorial-three-php.html
  */
-final class Publisher
+final class FanoutPublisher
 {
     /** @var AMQPChannel */
     private $channel;

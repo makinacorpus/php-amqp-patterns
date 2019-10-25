@@ -30,17 +30,17 @@ final class TaskPublisher
     private $exchange;
 
     /** @var string */
-    private $queue;
+    private $routingKey;
 
     /**
      * Default constructor
      */
-    public function __construct(AMQPChannel $channel, string $queue, ?string $exchange = null, bool $doDeclareExchange = true)
+    public function __construct(AMQPChannel $channel, string $routingKey, ?string $exchange = null, bool $doDeclareExchange = true)
     {
         $this->channel = $channel;
         $this->exchange = $exchange;
         $this->doDeclareExchance = $doDeclareExchange;
-        $this->queue = $queue;
+        $this->routingKey = $routingKey;
     }
 
     /**
@@ -48,10 +48,8 @@ final class TaskPublisher
      *
      * Data must have been already encoded if necessary
      */
-    public function publish(string $data, array $properties = []): void
+    public function publish(string $data, array $properties = [], ?string $routingKey = null): void
     {
-        $this->channel->queue_declare($this->queue, false, true, false, false);
-
         if ($this->exchange && $this->doDeclareExchance) {
             // Declare a channel with sensible defaults for the worker pattern.
             $this->channel->exchange_declare($this->exchange, PatternFactory::EXCHANGE_DIRECT, false, true, false);
@@ -59,7 +57,7 @@ final class TaskPublisher
 
         $message = new AMQPMessage($data, $properties);
 
-        $this->channel->basic_publish($message, $this->exchange ?? '', $this->queue);
+        $this->channel->basic_publish($message, $this->exchange ?? '', $routingKey ?? $this->routingKey);
     }
 
     /**
