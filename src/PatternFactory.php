@@ -71,6 +71,29 @@ final class PatternFactory
     }
 
     /**
+     * Is given exchange type valid
+     */
+    public static function isExchangeTypeValid(string $exchangeType, bool $raiseErrorIfInvalid = true): bool
+    {
+        $allowed = [
+            self::EXCHANGE_DIRECT,
+            self::EXCHANGE_FANOUT,
+            self::EXCHANGE_TOPIC,
+        ];
+
+        if (!\in_array($exchangeType, $allowed)) {
+            if ($raiseErrorIfInvalid) {
+                throw new \InvalidArgumentException(\sprintf(
+                    "'%s': invalid exchange type, allowed valus are: '%s'",
+                    $exchangeType, \implode("', '", $allowed)
+                ));
+            }
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Fetch raw connection
      */
     public function connection(): AMQPStreamConnection
@@ -91,19 +114,51 @@ final class PatternFactory
     }
 
     /**
-     * Create task publisher.
+     * Topic publisher is the same as task publisher except it will send on a
+     * topic exchange.
+     */
+    public function createTopicPublisher(string $exchange): TaskPublisher
+    {
+        return (new TaskPublisher($this->channel(), $exchange, true))
+            ->exchangeType(self::EXCHANGE_TOPIC)
+        ;
+    }
+
+    /**
+     * Topic worker is the same as task worker except that its queue will b
+     * bound to one or more binding keys, on a topic exchange.
+     */
+    public function createTopicWorker(string $exchange, array $bindingKeys, ?string $queueName = null): TaskWorker
+    {
+        return (new TaskWorker($this->channel(), $exchange, true))
+            ->exchangeType(self::EXCHANGE_TOPIC)
+            ->queue($queueName)
+            ->bindingKeys($bindingKeys)
+            ->withAck(true)
+        ;
+    }
+
+    /**
+     * Create task publisher. Routing key here must be a queue name.
      */
     public function createTaskPublisher(string $routingKey, ?string $exchange = null): TaskPublisher
     {
-        return new TaskPublisher($this->channel(), $routingKey, $exchange, true);
+        return (new TaskPublisher($this->channel(), $exchange, true))
+            ->exchangeType(self::EXCHANGE_DIRECT)
+            ->defaultRoutingKey($routingKey)
+        ;
     }
 
     /**
      * Create task worker.
      */
-    public function createTaskWorker(string $queue, ?string $exchange = null): TaskWorker
+    public function createTaskWorker(string $queueName, ?string $exchange = null): TaskWorker
     {
-        return new TaskWorker($this->channel(), $queue, $exchange, true);
+        return (new TaskWorker($this->channel(), $exchange, true))
+            ->exchangeType(self::EXCHANGE_DIRECT)
+            ->queue($queueName)
+            ->withAck(true)
+        ;
     }
 
     /**

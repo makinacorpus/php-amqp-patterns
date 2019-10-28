@@ -21,6 +21,9 @@ final class TaskWorker
 {
     use SignalHandler;
 
+    /** @var callable */
+    private $callback;
+
     /** @var AMQPChannel */
     private $channel;
 
@@ -30,24 +33,39 @@ final class TaskWorker
     /** @var string */
     private $exchange;
 
-    /** @var callable */
-    private $callback;
+    /** @var string */
+    private $exchangeType = PatternFactory::EXCHANGE_DIRECT;
+
+    /** @var ?string */
+    private $queueName;
+
+    /** @var ?string[] */
+    private $bindingKeys;
+
+    /** @var bool */
+    private $withAck = false;
 
     /** @var bool */
     private $running = false;
 
-    /** @var string */
-    private $queue;
-
     /**
      * Default constructor
      */
-    public function __construct(AMQPChannel $channel, string $queue, ?string $exchange = null, bool $doDeclareExchange = true)
+    public function __construct(AMQPChannel $channel, ?string $exchange = null, bool $doDeclareExchange = true)
     {
         $this->channel = $channel;
-        $this->exchange = $exchange;
         $this->doDeclareExchance = $doDeclareExchange;
-        $this->queue = $queue;
+        $this->exchange = $exchange;
+    }
+
+    /**
+     * Raise an exception
+     */
+    private function raiseErrorIfRunning()
+    {
+        if ($this->running) {
+            throw new \LogicException("You cannot change consumer state once running");
+        }
     }
 
     /**
@@ -55,17 +73,87 @@ final class TaskWorker
      *
      * @param callback $callback
      *   First callback argument is the message
+     *
+     * @return $this
      */
     public function callback(callable $callback): TaskWorker
     {
+        $this->raiseErrorIfRunning();
+
         if ($this->callback) {
             throw new \LogicException("You cannot call ::callback() twice");
         }
+
         $this->callback = $callback;
 
         return $this;
     }
 
+    /**
+     * Set queue name
+     *
+     * @param ?string $queueName
+     *   Can be set to null or an empty string for an anonymous queue
+     *
+     * @return $this
+     */
+    public function queue(?string $queueName): TaskWorker
+    {
+        $this->raiseErrorIfRunning();
+
+        $this->queueName = $queueName;
+
+        return $this;
+    }
+
+    /**
+     * Set exchange type
+     */
+    public function exchangeType(string $exchangeType): TaskWorker
+    {
+        $this->raiseErrorIfRunning();
+        PatternFactory::isExchangeTypeValid($exchangeType);
+
+        $this->exchangeType = $exchangeType;
+
+        return $this;
+    }
+
+    /**
+     * Set ACK mode
+     *
+     * For event consumer, for publish/subscribe usage, we don't need ack
+     *
+     * @return $this;
+     */
+    public function bindingKeys(?array $bindingKeys): TaskWorker
+    {
+        $this->raiseErrorIfRunning();
+
+        $this->bindingKeys = $bindingKeys;
+
+        return $this;
+    }
+
+    /**
+     * Set ACK mode
+     *
+     * For event consumer, for publish/subscribe usage, we don't need ack
+     *
+     * @return $this;
+     */
+    public function withAck(bool $toggle = true): TaskWorker
+    {
+        $this->raiseErrorIfRunning();
+
+        $this->withAck = $toggle;
+
+        return $this;
+    }
+
+    /**
+     * Run internal loop.
+     */
     private function runLoop()
     {
         if ($this->running) {
@@ -82,23 +170,44 @@ final class TaskWorker
     }
 
     /**
+     * Prepare queue
+     */
+    protected function prepareQueue(): string
+    {
+        if ($this->queueName) {
+            $this->channel->queue_declare($this->queueName, false, true, false, false);
+            $queueName = $this->queueName;
+        } else {
+            list($queueName) = $this->channel->queue_declare("", false, false, false, false);
+        }
+
+        if ($this->doDeclareExchance) {
+            // Declare a channel with sensible defaults.
+            $this->channel->exchange_declare($this->exchange, $this->exchangeType, false, true, false);
+        }
+
+        foreach ($this->bindingKeys ?? [] as $bindingKey) {
+            $this->channel->queue_bind($queueName, $this->exchange, $bindingKey);
+        }
+
+        return $queueName;
+    }
+
+    /**
      * Run consumer
      */
-    public function run(): void
+    final public function run(): void
     {
         if (!$this->callback) {
             throw new \LogicException("You must call the ::callback() function prior running the subscriber");
         }
 
-        $this->channel->queue_declare($this->queue, false, true, false, false);
+        $this->raiseErrorIfRunning();
 
-        if ($this->exchange && $this->doDeclareExchance) {
-            // Declare a channel with sensible defaults for the worker pattern.
-            $this->channel->exchange_declare($this->exchange, PatternFactory::EXCHANGE_DIRECT, false, true, false);
-        }
+        $queueName = $this->prepareQueue();
 
         $this->channel->basic_consume(
-            $this->queue, '', false, false, false, false,
+            $queueName, '', false, false, false, false,
 
             // What happens when a message is received.
             function (AMQPMessage $message): void {

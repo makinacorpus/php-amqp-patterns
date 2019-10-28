@@ -12,7 +12,7 @@ use PhpAmqpLib\Message\AMQPMessage;
  *
  * @see https://www.rabbitmq.com/tutorials/tutorial-three-php.html
  */
-final class FanoutPublisher
+final class FanoutPublisher implements Publisher
 {
     /** @var AMQPChannel */
     private $channel;
@@ -34,11 +34,11 @@ final class FanoutPublisher
     }
 
     /**
-     * Publish a message
+     * {@inheritdoc}
      *
-     * Data must have been already encoded if necessary
+     * In this implementation, $routingKey will be ignored.
      */
-    public function publish(string $data, array $properties = []): void
+    public function publish(string $data, array $properties = [], ?string $routingKey = null): void
     {
         if ($this->doDeclareExchance) {
             // Declare a channel with sensible defaults for the

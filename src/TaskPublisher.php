@@ -18,7 +18,7 @@ use PhpAmqpLib\Message\AMQPMessage;
  *
  * @see https://www.rabbitmq.com/tutorials/tutorial-two-php.html
  */
-final class TaskPublisher
+final class TaskPublisher implements Publisher
 {
     /** @var AMQPChannel */
     private $channel;
@@ -30,29 +30,56 @@ final class TaskPublisher
     private $exchange;
 
     /** @var string */
+    private $exchangeType = PatternFactory::EXCHANGE_DIRECT;
+
+    /** @var string */
     private $routingKey;
 
     /**
      * Default constructor
      */
-    public function __construct(AMQPChannel $channel, string $routingKey, ?string $exchange = null, bool $doDeclareExchange = true)
+    public function __construct(AMQPChannel $channel, ?string $exchange = null, bool $doDeclareExchange = true)
     {
         $this->channel = $channel;
         $this->exchange = $exchange;
         $this->doDeclareExchance = $doDeclareExchange;
-        $this->routingKey = $routingKey;
     }
 
     /**
-     * Publish a message
+     * Set default routing key if none provided at publish() call.
      *
-     * Data must have been already encoded if necessary
+     * @param ?string $routingKey
+     *   Can be set to null to drop
+     *
+     * @return $this
+     */
+    public function defaultRoutingKey(?string $routingKey): TaskPublisher
+    {
+        $this->routingKey = $routingKey;
+
+        return $this;
+    }
+
+    /**
+     * Set exchange type
+     */
+    public function exchangeType(string $exchangeType): TaskPublisher
+    {
+        PatternFactory::isExchangeTypeValid($exchangeType);
+
+        $this->exchangeType = $exchangeType;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function publish(string $data, array $properties = [], ?string $routingKey = null): void
     {
         if ($this->exchange && $this->doDeclareExchance) {
-            // Declare a channel with sensible defaults for the worker pattern.
-            $this->channel->exchange_declare($this->exchange, PatternFactory::EXCHANGE_DIRECT, false, true, false);
+            // Declare a channel with sensible defaults.
+            $this->channel->exchange_declare($this->exchange, $this->exchangeType, false, true, false);
         }
 
         $message = new AMQPMessage($data, $properties);
