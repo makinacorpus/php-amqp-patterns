@@ -9,25 +9,6 @@ use PhpAmqpLib\Connection\AMQPStreamConnection;
 
 /**
  * Queue factory: creates queues.
- *
- * @todo
- *   Current model is wrong, we should implement pattern directly, such
- *   as PUB/SUB with methods such as:
- *     -> createSubscriber() // pub/sub consumer
- *     -> createPublisher() // pub/sub publisher
- *     -> createWorker() // worker consumer
- *     -> create?() // worker published
- *     -> ...
- *   
- *   That would return custom objects with such methods depending upon
- *   the selected pattern, of course:
- *     -> declareExchange()
- *     -> declareQueue(?bindTo)
- *     -> getRawChannel(): AMQPChannel
- *     -> publish()
- *     -> consume(function?)
- *     -> stop()
- *     -> ...
  */
 final class PatternFactory
 {
@@ -114,36 +95,54 @@ final class PatternFactory
     }
 
     /**
-     * Topic publisher is the same as task publisher except it will send on a
-     * topic exchange.
+     * Creates a publisher
      */
-    public function createTopicPublisher(string $exchange): TaskPublisher
+    public function createPublisher(?string $exchange = null): DefaultPublisher
     {
-        return (new TaskPublisher($this->channel(), $exchange, true))
+        return new DefaultPublisher($this->channel(), $exchange, true);
+    }
+
+    /**
+     * Creates a consumer
+     */
+    public function createWorker(?string $exchange = null): TaskWorker
+    {
+        return new TaskWorker($this->channel(), $exchange, true);
+    }
+
+    /**
+     * Topic publisher is the same as task publisher for a topic exchange.
+     */
+    public function createTopicPublisher(string $exchange): DefaultPublisher
+    {
+        return $this
+            ->createPublisher($exchange)
             ->exchangeType(self::EXCHANGE_TOPIC)
         ;
     }
 
     /**
-     * Topic worker is the same as task worker except that its queue will b
+     * Topic worker is the same as task worker except that its queue will be
      * bound to one or more binding keys, on a topic exchange.
      */
     public function createTopicWorker(string $exchange, array $bindingKeys, ?string $queueName = null): TaskWorker
     {
-        return (new TaskWorker($this->channel(), $exchange, true))
+        return $this
+            ->createWorker($exchange)
             ->exchangeType(self::EXCHANGE_TOPIC)
             ->queue($queueName)
             ->bindingKeys($bindingKeys)
-            ->withAck(true)
+            ->withAck()
         ;
     }
 
     /**
      * Create task publisher. Routing key here must be a queue name.
      */
-    public function createTaskPublisher(string $routingKey, ?string $exchange = null): TaskPublisher
+    public function createTaskPublisher(string $routingKey, ?string $exchange = null): Publisher
     {
-        return (new TaskPublisher($this->channel(), $exchange, true))
+        return $this
+            ->createPublisher($exchange)
             ->exchangeType(self::EXCHANGE_DIRECT)
             ->defaultRoutingKey($routingKey)
         ;
@@ -154,19 +153,23 @@ final class PatternFactory
      */
     public function createTaskWorker(string $queueName, ?string $exchange = null): TaskWorker
     {
-        return (new TaskWorker($this->channel(), $exchange, true))
+        return $this
+            ->createWorker($exchange)
             ->exchangeType(self::EXCHANGE_DIRECT)
             ->queue($queueName)
-            ->withAck(true)
+            ->withAck()
         ;
     }
 
     /**
      * Create publish/subscribe-like publisher.
      */
-    public function createFanoutPublisher(string $exchange): FanoutPublisher
+    public function createFanoutPublisher(string $exchange): Publisher
     {
-        return new FanoutPublisher($this->channel(), $exchange, true);
+        return $this
+            ->createPublisher($exchange)
+            ->exchangeType(self::EXCHANGE_FANOUT)
+        ;
     }
 
     /**

@@ -52,7 +52,7 @@ final class PublisherSampleCommand extends Command
 
         $this
             ->factory
-            ->createPublisher($this->exchange)
+            ->createFanoutPublisher($this->exchange)
             ->publish($input->getArgument('message'))
         ;
     }

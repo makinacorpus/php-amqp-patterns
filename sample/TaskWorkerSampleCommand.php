@@ -78,8 +78,13 @@ final class TaskWorkerSampleCommand extends Command
                     return;
                 }
                 if ($message->body === 'reject') {
-                    $output->writeln("OK, rejecting with requeue.");
-                    $reject(true);
+                    if ($message->delivery_info['redelivered']) {
+                        $output->writeln("OK, message is a redelivery, rejecting without requeue.");
+                        $reject(false);
+                    } else {
+                        $output->writeln("OK, rejecting with requeue.");
+                        $reject(true);
+                    }
                     return;
                 }
                 $output->writeln("OK, I'm done.");

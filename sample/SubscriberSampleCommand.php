@@ -51,7 +51,7 @@ final class SubscriberSampleCommand extends Command
 
         $this
             ->factory
-            ->createSubscriber($this->exchange)
+            ->createFanoutSubscriber($this->exchange)
             ->callback(function (AMQPMessage $message) use ($output) {
                 $output->writeln(\sprintf("[%s] %s", (new \DateTime())->format('Y-m-d H:i:s'), $message->body));
             })

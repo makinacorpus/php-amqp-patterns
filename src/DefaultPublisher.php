@@ -18,7 +18,7 @@ use PhpAmqpLib\Message\AMQPMessage;
  *
  * @see https://www.rabbitmq.com/tutorials/tutorial-two-php.html
  */
-final class TaskPublisher implements Publisher
+final class DefaultPublisher implements Publisher
 {
     /** @var AMQPChannel */
     private $channel;
@@ -53,7 +53,7 @@ final class TaskPublisher implements Publisher
      *
      * @return $this
      */
-    public function defaultRoutingKey(?string $routingKey): TaskPublisher
+    public function defaultRoutingKey(?string $routingKey): DefaultPublisher
     {
         $this->routingKey = $routingKey;
 
@@ -63,7 +63,7 @@ final class TaskPublisher implements Publisher
     /**
      * Set exchange type
      */
-    public function exchangeType(string $exchangeType): TaskPublisher
+    public function exchangeType(string $exchangeType): DefaultPublisher
     {
         PatternFactory::isExchangeTypeValid($exchangeType);
 
@@ -79,12 +79,13 @@ final class TaskPublisher implements Publisher
     {
         if ($this->exchange && $this->doDeclareExchance) {
             // Declare a channel with sensible defaults.
-            $this->channel->exchange_declare($this->exchange, $this->exchangeType, false, true, false);
+            $durable = $this->exchangeType !== PatternFactory::EXCHANGE_FANOUT;
+            $this->channel->exchange_declare($this->exchange, $this->exchangeType, false, $durable, false);
         }
 
         $message = new AMQPMessage($data, $properties);
 
-        $this->channel->basic_publish($message, $this->exchange ?? '', $routingKey ?? $this->routingKey);
+        $this->channel->basic_publish($message, $this->exchange ?? '', $routingKey ?? $this->routingKey ?? '');
     }
 
     /**
