@@ -140,8 +140,7 @@ $factory
 ;
 ```
 
-# Running the samples
+# Running samples
 
-## Environment setup
+A command is available as `bin/run-sample`, simply run it and try commands.
 
-## Publish/subscribe pattern
