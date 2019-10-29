@@ -99,15 +99,15 @@ final class PatternFactory
      */
     public function createPublisher(?string $exchange = null): DefaultPublisher
     {
-        return new DefaultPublisher($this->channel(), $exchange, true);
+        return new DefaultPublisher($this->channel(), $exchange);
     }
 
     /**
      * Creates a worker-type (handling ack/reject), unconfigured.
      */
-    public function createWorker(?string $exchange = null): TaskWorker
+    public function createConsumer(?string $exchange = null): DefaultConsumer
     {
-        return new TaskWorker($this->channel(), $exchange, true);
+        return new DefaultConsumer($this->channel(), $exchange);
     }
 
     /**
@@ -125,10 +125,10 @@ final class PatternFactory
      * Topic worker is the same as task worker except that its queue will be
      * bound to one or more binding keys, on a topic exchange.
      */
-    public function createTopicWorker(string $exchange, array $bindingKeys, ?string $queueName = null): TaskWorker
+    public function createTopicWorker(string $exchange, array $bindingKeys, ?string $queueName = null): Consumer
     {
         return $this
-            ->createWorker($exchange)
+            ->createConsumer($exchange)
             ->exchangeType(self::EXCHANGE_TOPIC)
             ->queue($queueName)
             ->bindingKeys($bindingKeys)
@@ -143,40 +143,53 @@ final class PatternFactory
     {
         return $this
             ->createPublisher($exchange)
-            ->exchangeType(self::EXCHANGE_DIRECT)
             ->defaultRoutingKey($routingKey)
+            ->exchangeType(self::EXCHANGE_DIRECT)
+            ->exchangeIsDurable(true)
+            ->doDeclareExchange(true)
         ;
     }
 
     /**
      * Create task worker.
      */
-    public function createTaskWorker(string $queueName, ?string $exchange = null): TaskWorker
+    public function createTaskWorker(string $exchange, array $bindingKeys, ?string $queueName = null): Consumer
     {
         return $this
-            ->createWorker($exchange)
-            ->exchangeType(self::EXCHANGE_DIRECT)
-            ->queue($queueName)
+            ->createConsumer($exchange)
             ->withAck()
+            ->bindingKeys($bindingKeys)
+            ->queue($queueName)
+            ->exchangeType(self::EXCHANGE_DIRECT)
+            ->exchangeIsDurable(true)
+            ->doDeclareExchange(true)
         ;
     }
 
     /**
      * Create publish/subscribe-like publisher.
      */
-    public function createFanoutPublisher(string $exchange): Publisher
+    public function createFanoutPublisher(string $exchange, ?array $bindingKeys = null): Publisher
     {
         return $this
             ->createPublisher($exchange)
             ->exchangeType(self::EXCHANGE_FANOUT)
+            ->exchangeIsDurable(false)
+            ->doDeclareExchange(true)
         ;
     }
 
     /**
      * Create publish/subscribe-like subscriber.
      */
-    public function createFanoutSubscriber(string $exchange): FanoutSubscriber
+    public function createFanoutSubscriber(string $exchange): Consumer
     {
-        return new FanoutSubscriber($this->channel(), $exchange, true);
+        return $this
+            ->createConsumer($exchange)
+            ->withAck(false)
+            ->exchangeType(self::EXCHANGE_FANOUT)
+            ->exchangeIsDurable(false)
+            ->doDeclareExchange(true)
+        ;
     }
 }

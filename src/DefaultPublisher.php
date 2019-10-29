@@ -20,17 +20,7 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 final class DefaultPublisher implements Publisher
 {
-    /** @var AMQPChannel */
-    private $channel;
-
-    /** @var bool */
-    private $doDeclareExchance = true;
-
-    /** @var ?string */
-    private $exchange;
-
-    /** @var string */
-    private $exchangeType = PatternFactory::EXCHANGE_DIRECT;
+    use ClientTrait;
 
     /** @var string */
     private $routingKey;
@@ -38,11 +28,10 @@ final class DefaultPublisher implements Publisher
     /**
      * Default constructor
      */
-    public function __construct(AMQPChannel $channel, ?string $exchange = null, bool $doDeclareExchange = true)
+    public function __construct(AMQPChannel $channel, ?string $exchange = null)
     {
         $this->channel = $channel;
         $this->exchange = $exchange;
-        $this->doDeclareExchance = $doDeclareExchange;
     }
 
     /**
@@ -61,27 +50,11 @@ final class DefaultPublisher implements Publisher
     }
 
     /**
-     * Set exchange type
-     */
-    public function exchangeType(string $exchangeType): DefaultPublisher
-    {
-        PatternFactory::isExchangeTypeValid($exchangeType);
-
-        $this->exchangeType = $exchangeType;
-
-        return $this;
-    }
-
-    /**
      * {@inheritdoc}
      */
     public function publish(string $data, array $properties = [], ?string $routingKey = null): void
     {
-        if ($this->exchange && $this->doDeclareExchance) {
-            // Declare a channel with sensible defaults.
-            $durable = $this->exchangeType !== PatternFactory::EXCHANGE_FANOUT;
-            $this->channel->exchange_declare($this->exchange, $this->exchangeType, false, $durable, false);
-        }
+        $this->declareExchange();
 
         $message = new AMQPMessage($data, $properties);
 

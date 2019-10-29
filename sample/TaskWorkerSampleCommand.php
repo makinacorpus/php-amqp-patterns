@@ -62,7 +62,7 @@ final class TaskWorkerSampleCommand extends Command
 
         $this
             ->factory
-            ->createTaskWorker($queueName, $exchange)
+            ->createTaskWorker($exchange, [$queueName])
             ->callback(function (AMQPMessage $message, callable $ack, callable $reject) use ($output, $doSleep) {
                 $output->writeln("");
 

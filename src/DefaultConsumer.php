@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MakinaCorpus\AMQP\Patterns;
 
-use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
@@ -17,24 +16,15 @@ use PhpAmqpLib\Message\AMQPMessage;
  *
  * @see https://www.rabbitmq.com/tutorials/tutorial-two-php.html
  */
-final class TaskWorker
+final class DefaultConsumer implements Consumer
 {
-    use SignalHandler;
+    use ClientTrait, SignalHandlerTrait;
 
     /** @var callable */
-    private $callback;
+    private $onMessage;
 
-    /** @var AMQPChannel */
-    private $channel;
-
-    /** @var bool */
-    private $doDeclareExchance = true;
-
-    /** @var string */
-    private $exchange;
-
-    /** @var string */
-    private $exchangeType = PatternFactory::EXCHANGE_DIRECT;
+    /** @var ?callable */
+    private $onError;
 
     /** @var ?string */
     private $queueName;
@@ -45,46 +35,18 @@ final class TaskWorker
     /** @var bool */
     private $withAck = false;
 
-    /** @var bool */
-    private $running = false;
-
     /**
-     * Default constructor
+     * {@inheritdoc}
      */
-    public function __construct(AMQPChannel $channel, ?string $exchange = null, bool $doDeclareExchange = true)
-    {
-        $this->channel = $channel;
-        $this->doDeclareExchance = $doDeclareExchange;
-        $this->exchange = $exchange;
-    }
-
-    /**
-     * Raise an exception
-     */
-    private function raiseErrorIfRunning()
-    {
-        if ($this->running) {
-            throw new \LogicException("You cannot change consumer state once running");
-        }
-    }
-
-    /**
-     * Set callback
-     *
-     * @param callback $callback
-     *   First callback argument is the message
-     *
-     * @return $this
-     */
-    public function callback(callable $callback): TaskWorker
+    public function callback(callable $onMessage): Consumer
     {
         $this->raiseErrorIfRunning();
 
-        if ($this->callback) {
+        if ($this->onMessage) {
             throw new \LogicException("You cannot call ::callback() twice");
         }
 
-        $this->callback = $callback;
+        $this->onMessage = $onMessage;
 
         return $this;
     }
@@ -97,24 +59,11 @@ final class TaskWorker
      *
      * @return $this
      */
-    public function queue(?string $queueName): TaskWorker
+    public function queue(?string $queueName): Consumer
     {
         $this->raiseErrorIfRunning();
 
         $this->queueName = $queueName;
-
-        return $this;
-    }
-
-    /**
-     * Set exchange type
-     */
-    public function exchangeType(string $exchangeType): TaskWorker
-    {
-        $this->raiseErrorIfRunning();
-        PatternFactory::isExchangeTypeValid($exchangeType);
-
-        $this->exchangeType = $exchangeType;
 
         return $this;
     }
@@ -126,7 +75,7 @@ final class TaskWorker
      *
      * @return $this;
      */
-    public function bindingKeys(?array $bindingKeys): TaskWorker
+    public function bindingKeys(?array $bindingKeys): Consumer
     {
         $this->raiseErrorIfRunning();
 
@@ -142,7 +91,7 @@ final class TaskWorker
      *
      * @return $this;
      */
-    public function withAck(bool $toggle = true): TaskWorker
+    public function withAck(bool $toggle = true): Consumer
     {
         $this->raiseErrorIfRunning();
 
@@ -172,27 +121,32 @@ final class TaskWorker
     /**
      * Prepare queue
      */
-    protected function prepareQueue(): string
+    private function prepareQueue(): string
     {
         if ($this->queueName) {
+            // User asked for a queue name, declare it as durable and non
+            // exclusive, so the queue will remain and accept other clients
+            // connections.
             $this->channel->queue_declare($this->queueName, false, true, false, false);
             $queueName = $this->queueName;
         } else {
-            list($queueName) = $this->channel->queue_declare("", false, false, false, false);
+            // Mark anonymous queues as being exclusive and not durable and such
+            // it will be destroyed once the connection ends.
+            list($queueName) = $this->channel->queue_declare("", false, false, true, false);
         }
 
-        if ($this->exchange && $this->doDeclareExchance) {
-            // Declare a channel with sensible defaults.
-            $this->channel->exchange_declare($this->exchange, $this->exchangeType, false, true, false);
-        }
+        $this->declareExchange();
 
+        // We must always bind, the only exception is when a client connects
+        // without an exchange (default exchange). You should not do this.
         if ($this->bindingKeys) {
-            // Bind routing keys.
+            // Bind routing keys, perfect for direct and topic exchange.
             foreach ($this->bindingKeys ?? [] as $bindingKey) {
                 $this->channel->queue_bind($queueName, $this->exchange, $bindingKey);
             }
         } else {
-            // Consider the queue name as the binding key.
+            // Consider the queue name as the binding key in case we are working
+            // with a direct exchange.
             $this->channel->queue_bind($queueName, $this->exchange, $queueName);
         }
 
@@ -200,16 +154,10 @@ final class TaskWorker
     }
 
     /**
-     * Run consumer
+     * Consume with ack (worker)
      */
-    final public function run(): void
+    private function consumeWithAck(): void
     {
-        if (!$this->callback) {
-            throw new \LogicException("You must call the ::callback() function prior running the subscriber");
-        }
-
-        $this->raiseErrorIfRunning();
-
         $queueName = $this->prepareQueue();
 
         $this->channel->basic_consume(
@@ -235,7 +183,7 @@ final class TaskWorker
                 };
 
                 try {
-                    \call_user_func($this->callback, $message, $ack, $reject);
+                    \call_user_func($this->onMessage, $message, $ack, $reject);
                     // Allow user code to skip basic ack, if nothing failed just
                     // send the ack on its behalf.
                     if (!$responseSent) {
@@ -252,6 +200,34 @@ final class TaskWorker
                 }
             }
         );
+    }
+
+    /**
+     * Consume without ack (fanout/subscriber) 
+     */
+    private function consumeWithoutAck(): void
+    {
+        $queueName = $this->prepareQueue();
+
+        $this->channel->basic_consume($queueName, '', false, true, false, false, $this->onMessage);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    final public function run(): void
+    {
+        if (!$this->onMessage) {
+            throw new \LogicException("You must call the ::callback() function prior running the subscriber");
+        }
+
+        $this->raiseErrorIfRunning();
+
+        if ($this->withAck) {
+            $this->consumeWithAck();
+        } else {
+            $this->consumeWithoutAck();
+        }
 
         $this->runLoop();
     }
