@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use MakinaCorpus\AMQP\Patterns\PatternFactory;
 use MakinaCorpus\AMQP\Patterns\Sample\Env;
-use MakinaCorpus\AMQP\Patterns\Sample\PublisherSampleCommand;
-use MakinaCorpus\AMQP\Patterns\Sample\SubscriberSampleCommand;
+use MakinaCorpus\AMQP\Patterns\Sample\FanoutPublisherSampleCommand;
+use MakinaCorpus\AMQP\Patterns\Sample\FanoutSubscriberSampleCommand;
 use MakinaCorpus\AMQP\Patterns\Sample\TaskPublisherSampleCommand;
 use MakinaCorpus\AMQP\Patterns\Sample\TaskWorkerSampleCommand;
 use Symfony\Component\Console\Application;
@@ -44,9 +44,9 @@ if ($value = \getenv(Env::SERVER_USER)) {
 $factory = new PatternFactory([$host]);
 
 $application = new Application("AMQP patterns samples");
-$application->add(new PublisherSampleCommand($factory, Env::getSamplePubSubExchange()));
-$application->add(new SubscriberSampleCommand($factory, Env::getSamplePubSubExchange()));
-$application->add(new TaskPublisherSampleCommand($factory /* , Env::getSampleWorkerExchange() */));
-$application->add(new TaskWorkerSampleCommand($factory, Env::getSampleWorkerExchange()));
+$application->add(new FanoutPublisherSampleCommand($factory));
+$application->add(new FanoutSubscriberSampleCommand($factory));
+$application->add(new TaskPublisherSampleCommand($factory));
+$application->add(new TaskWorkerSampleCommand($factory));
 
 $application->run();

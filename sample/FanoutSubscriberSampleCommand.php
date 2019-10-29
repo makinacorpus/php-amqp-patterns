@@ -14,26 +14,22 @@ use Symfony\Component\Console\Input\InputOption;
 /**
  * Messages consumer
  */
-final class SubscriberSampleCommand extends Command
+final class FanoutSubscriberSampleCommand extends Command
 {
     /** @var string */
-    protected static $defaultName = 'amqp-pattern:sample:subscriber';
+    protected static $defaultName = 'amqp-pattern:sample:fanout-subscriber';
 
     /** @var PatternFactory */
     private $factory;
 
-    /** @var string */
-    private $exchange;
-
     /**
      * Default constructor
      */
-    public function __construct(PatternFactory $factory, string $exchange)
+    public function __construct(PatternFactory $factory)
     {
         parent::__construct();
 
         $this->factory = $factory;
-        $this->exchange = $exchange;
     }
 
     /**
@@ -41,8 +37,8 @@ final class SubscriberSampleCommand extends Command
      */
     protected function configure()
     {
-        $this->addOption('exchange', null, InputOption::VALUE_OPTIONAL, "Exchange on which to connect", $this->exchange);
-        $this->addOption('show-headers', null, InputOption::VALUE_NONE, "Show headers in output");
+        $this->addOption('exchange', null, InputOption::VALUE_REQUIRED, "Exchange on which to connect", "my_fanout_exchange");
+        $this->addOption('show-properties', null, InputOption::VALUE_NONE, "Show properties in output");
     }
 
     /**
@@ -71,20 +67,17 @@ final class SubscriberSampleCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        if (!$exchange = $input->getOption('exchange')) {
-            $exchange = $this->exchange;
-        }
-
+        $exchange = $input->getOption('exchange');
         $output->writeln("<comment>Using '{$exchange}' exchange.</comment>");
 
-        $showHeaders = (bool)$input->getOption('show-headers');
+        $showHeaders = (bool)$input->getOption('show-properties');
 
         $this
             ->factory
             ->createFanoutSubscriber($exchange)
             ->callback(function (AMQPMessage $message) use ($output, $showHeaders) {
                 if ($showHeaders) {
-                    $output->writeln("[%s] message received:");
+                    $output->writeln(\sprintf("[%s] message received:", (new \DateTime())->format('Y-m-d H:i:s')));
                     $output->writeln($this->formatProperty('properties', $message->get_properties()));
                     $output->writeln($this->formatProperty('body', $message->getBody()));
                 } else {

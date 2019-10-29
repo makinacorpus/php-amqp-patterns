@@ -22,18 +22,14 @@ final class TaskWorkerSampleCommand extends Command
     /** @var PatternFactory */
     private $factory;
 
-    /** @var string */
-    private $exchange;
-
     /**
      * Default constructor
      */
-    public function __construct(PatternFactory $factory, ?string $exchange = null)
+    public function __construct(PatternFactory $factory)
     {
         parent::__construct();
 
         $this->factory = $factory;
-        $this->exchange = $exchange;
     }
 
     /**
@@ -41,7 +37,9 @@ final class TaskWorkerSampleCommand extends Command
      */
     protected function configure()
     {
+        $this->addOption('exchange', null, InputOption::VALUE_OPTIONAL, "Exchange on which to connect", "");
         $this->addOption('no-sleep', null, InputOption::VALUE_NONE, "Disable sleep when processing message");
+        $this->addOption('queue', null, InputOption::VALUE_REQUIRED, "Queue on which to consume", 'my_task_queue');
     }
 
     /**
@@ -49,19 +47,22 @@ final class TaskWorkerSampleCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $doSleep = !$input->getOption('no-sleep');
+        $exchange = $input->getOption('exchange');
+        $output->writeln("<comment>Using '{$exchange}' exchange.</comment>");
 
-        $output->writeln("<comment>Using '{$this->exchange}' exchange.</comment>");
-
+        $queueName = $input->getOption('queue');
         $output->writeln("<comment>I am working on the 'my_task_queue' queue.</comment>");
+
         $output->writeln("<comment>Send me 'invalid' for a reject without requeing.</comment>");
         $output->writeln("<comment>Send me 'reject' for a reject with requeing.</comment>");
         $output->writeln("<comment>Type CTRL+C when I tell you to do so for a 'reject' with requeing.</comment>");
         $output->writeln("<comment>Send me anything else for a basic ack.</comment>");
 
+        $doSleep = !$input->getOption('no-sleep');
+
         $this
             ->factory
-            ->createTaskWorker('my_task_queue', $this->exchange)
+            ->createTaskWorker($queueName, $exchange)
             ->callback(function (AMQPMessage $message, callable $ack, callable $reject) use ($output, $doSleep) {
                 $output->writeln("");
 

@@ -181,13 +181,19 @@ final class TaskWorker
             list($queueName) = $this->channel->queue_declare("", false, false, false, false);
         }
 
-        if ($this->doDeclareExchance) {
+        if ($this->exchange && $this->doDeclareExchance) {
             // Declare a channel with sensible defaults.
             $this->channel->exchange_declare($this->exchange, $this->exchangeType, false, true, false);
         }
 
-        foreach ($this->bindingKeys ?? [] as $bindingKey) {
-            $this->channel->queue_bind($queueName, $this->exchange, $bindingKey);
+        if ($this->bindingKeys) {
+            // Bind routing keys.
+            foreach ($this->bindingKeys ?? [] as $bindingKey) {
+                $this->channel->queue_bind($queueName, $this->exchange, $bindingKey);
+            }
+        } else {
+            // Consider the queue name as the binding key.
+            $this->channel->queue_bind($queueName, $this->exchange, $queueName);
         }
 
         return $queueName;

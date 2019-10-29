@@ -12,20 +12,4 @@ final class Env
     const SERVER_PASSWORD = 'AMQP_PATTERNS_SAMPLE_SERVER_PASSWORD';
     const SERVER_PORT = 'AMQP_PATTERNS_SAMPLE_SERVER_PORT';
     const SERVER_USER = 'AMQP_PATTERNS_SAMPLE_SERVER_USER';
-
-    public static function getSamplePubSubExchange(): string
-    {
-        if ($value = \getenv(self::EXCHANGE_PUBSUB)) {
-            return $value;
-        }
-        return 'amqp_patterns_sample_pubsub';
-    }
-
-    public static function getSampleWorkerExchange(): string
-    {
-        if ($value = \getenv(self::EXCHANGE_WORKER)) {
-            return $value;
-        }
-        return 'amqp_patterns_sample_worker';
-    }
 }

@@ -72,7 +72,7 @@ use MakinaCorpus\AMQP\Patterns\PatternFactory;
 $factory = new PatternFactory([ /* ... */], true);
 ```
 
-## Publish/subscribe pattern
+## Publish/subscribe pattern with fanout exchange
 
 Please read https://www.rabbitmq.com/tutorials/tutorial-three-php.html
 
@@ -92,7 +92,7 @@ use MakinaCorpus\AMQP\Patterns\PatternFactory;
 
 $factory = new PatternFactory(/* ... */);
 
-$publisher = $factory->createPublisher('user.message');
+$publisher = $factory->createPublisher('amqp_patterns_sample_pubsub');
 
 // Raw message without any properties
 $publisher->publish('Some message');
@@ -107,7 +107,7 @@ JSON
     ,
     // Arbitrary AMQP valid message properties
     [
-        'content_type': 'application/json',
+        'content_type' => 'application/json',
     ]
 );
 ```
@@ -142,5 +142,112 @@ $factory
 
 # Running samples
 
-A command is available as `bin/run-sample`, simply run it and try commands.
+For running samples, you need a working AMQP broker listening on localhost.
 
+As of now, it was only tested using RabbitMQ 3.7.x.
+
+## Publish/subscribe pattern with fanout exchange
+
+Please read https://www.rabbitmq.com/tutorials/tutorial-three-php.html
+
+This will work only on a `fanout` exchange type, it may or may be not already
+declared in the broker.
+
+Per default, exchange name is `amqp_patterns_sample_pubsub`, there is no queue
+nor any kind of binding involved.
+
+First step is to start one or more subscribers:
+
+```sh
+bin/run-sample amqp-pattern:sample:fanout-subscriber --exchange=my_exchange
+```
+
+Additionnaly, you can ask for the subscriber to display full message properties
+upon receival:
+
+```sh
+bin/run-sample amqp-pattern:sample:fanout-subscriber \
+    --exchange=my_fanout_exchange \
+    --show-properties
+```
+
+Since this is a `fanout` exchange all started subscribers will receive all
+messages, and when there is no subscribers, the broker will drop the messages.
+
+Please be aware that the exchange, if non existing, will be created as a fanout
+exchange, and set to durable: it will survive client deconnection and broker
+restart.
+
+Once you started all your subsribers, just send messages into the queue:
+
+```sh
+bin/run-sample amqp-pattern:sample:fanout-publisher \
+    --exchange=my_fanout_exchange \
+    --content-type="text/plain" \
+    "Hello, world"
+```
+
+## Worker pattern with direct exchange
+
+Please read https://www.rabbitmq.com/tutorials/tutorial-two-php.html
+
+This will work only on a `direct` exchange type, it may or may be not already
+declared in the broker.
+
+Per default, exchange name is `amqp_patterns_sample_worker`, there is no queue
+nor any kind of binding involved.
+
+First step is to start one or more workers:
+
+```sh
+bin/run-sample amqp-pattern:sample:task-worker \
+    --exchange=my_direct_exchange \
+    --queue=my_task_queue
+```
+
+Since this is a `direct` exchange, and messages will be sent to queues, they
+will be requeued if no consumer did `ack` it properly, until the message reaches
+its lifetime or is consumed properly.
+
+Please be aware that the exchange, if non existing, will be created as a direct
+exchange, and set to durable: it will survive client deconnection and broker
+restart.
+
+Once you started all your subsribers, just send messages into the queue:
+
+```sh
+bin/run-sample amqp-pattern:sample:task-publisher \
+    --exchange=my_direct_exchange \
+    --content-type="text/plain" \
+    --routing-key=my_task_queue \
+    "Hello, world"
+```
+
+You will notice that even if you start more than one worker, each message
+will only be consumed once by one and only one worker. 
+
+Bonus, you can also test message requeue:
+
+```sh
+bin/run-sample amqp-pattern:sample:task-publisher \
+    --exchange=my_direct_exchange \
+    --content-type="text/plain" \
+    --routing-key=my_task_queue \
+    "reject"
+```
+
+Or force a reject without requeue:
+
+```sh
+bin/run-sample amqp-pattern:sample:task-publisher \
+    --exchange=my_direct_exchange \
+    --content-type="text/plain" \
+    --routing-key=my_task_queue \
+    "invalid"
+```
+
+Any other message value will trigger an ack.
+
+## Worker pattern with topic exchange
+
+Still needs to be done, sorry.
