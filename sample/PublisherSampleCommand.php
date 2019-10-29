@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace MakinaCorpus\AMQP\Patterns\Sample;
 
+use MakinaCorpus\AMQP\Patterns\PatternFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use MakinaCorpus\AMQP\Patterns\PatternFactory;
 
 /**
  * Messages consumer
@@ -41,6 +42,8 @@ final class PublisherSampleCommand extends Command
     protected function configure()
     {
         $this->addArgument('message', InputArgument::REQUIRED);
+        $this->addOption('exchange', null, InputOption::VALUE_OPTIONAL, "Exchange on which to connect", $this->exchange);
+        $this->addOption('routing-key', null, InputOption::VALUE_NONE, "Routing key to use to publish message", null);
     }
 
     /**
@@ -48,12 +51,22 @@ final class PublisherSampleCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $output->writeln("<comment>Using '{$this->exchange}' exchange.</comment>");
+        if (!$exchange = $input->getOption('exchange')) {
+            $exchange = $this->exchange;
+        }
+
+        $output->writeln("<comment>Using '{$exchange}' exchange.</comment>");
+
+        if ($routingKey = $input->getOption('routing-key')) {
+            $output->writeln("<comment>Using '{$routingKey}' routing_key.</comment>");
+        } else {
+            $output->writeln("<comment>Using no routing_key.</comment>");
+        }
 
         $this
             ->factory
-            ->createFanoutPublisher($this->exchange)
-            ->publish($input->getArgument('message'))
+            ->createFanoutPublisher($exchange)
+            ->publish($input->getArgument('message'), [], $routingKey)
         ;
     }
 }

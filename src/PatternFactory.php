@@ -95,7 +95,7 @@ final class PatternFactory
     }
 
     /**
-     * Creates a publisher
+     * Creates a publisher, unconfigured.
      */
     public function createPublisher(?string $exchange = null): DefaultPublisher
     {
@@ -103,7 +103,7 @@ final class PatternFactory
     }
 
     /**
-     * Creates a consumer
+     * Creates a worker-type (handling ack/reject), unconfigured.
      */
     public function createWorker(?string $exchange = null): TaskWorker
     {
