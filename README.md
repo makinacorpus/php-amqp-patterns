@@ -153,13 +153,13 @@ Please read https://www.rabbitmq.com/tutorials/tutorial-three-php.html
 This will work only on a `fanout` exchange type, it may or may be not already
 declared in the broker.
 
-Per default, exchange name is `amqp_patterns_sample_pubsub`, there is no queue
+Per default, exchange name is `my_fanout_exchange`, there is no queue
 nor any kind of binding involved.
 
 First step is to start one or more subscribers:
 
 ```sh
-bin/run-sample amqp-pattern:sample:fanout-subscriber --exchange=my_exchange
+bin/run-sample amqp-pattern:sample:fanout-subscriber --exchange=my_fanout_exchange
 ```
 
 Additionnaly, you can ask for the subscriber to display full message properties
@@ -194,7 +194,7 @@ Please read https://www.rabbitmq.com/tutorials/tutorial-two-php.html
 This will work only on a `direct` exchange type, it may or may be not already
 declared in the broker.
 
-Per default, exchange name is `amqp_patterns_sample_worker`, there is no queue
+Per default, exchange name is `my_direct_exchange`, there is no queue
 nor any kind of binding involved.
 
 First step is to start one or more workers:
