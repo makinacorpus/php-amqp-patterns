@@ -31,7 +31,7 @@ final class DefaultConsumer implements Consumer
     /**
      * {@inheritdoc}
      */
-    public function callback(callable $onMessage): Consumer
+    public function onMessage(callable $onMessage)
     {
         $this->raiseErrorIfRunning();
 
@@ -45,6 +45,18 @@ final class DefaultConsumer implements Consumer
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function onError(?callable $onError)
+    {
+        $this->raiseErrorIfRunning();
+
+        $this->onError = $onError;
+
+        return $this;
+    }
+
+    /**
      * Set queue name
      *
      * @param ?string $queueName
@@ -52,7 +64,7 @@ final class DefaultConsumer implements Consumer
      *
      * @return $this
      */
-    public function queue(?string $queueName): Consumer
+    public function queue(?string $queueName): DefaultConsumer
     {
         $this->raiseErrorIfRunning();
 
@@ -68,7 +80,7 @@ final class DefaultConsumer implements Consumer
      *
      * @return $this;
      */
-    public function bindingKeys(?array $bindingKeys): Consumer
+    public function bindingKeys(?array $bindingKeys): DefaultConsumer
     {
         $this->raiseErrorIfRunning();
 
@@ -84,7 +96,7 @@ final class DefaultConsumer implements Consumer
      *
      * @return $this;
      */
-    public function withAck(bool $toggle = true): Consumer
+    public function withAck(bool $toggle = true): DefaultConsumer
     {
         $this->raiseErrorIfRunning();
 
@@ -171,6 +183,7 @@ final class DefaultConsumer implements Consumer
                 // reject, throwing a response twice for the same delivery tag
                 // will create low level protocol errors, and we don't want that.
                 $responseSent = false;
+                $errorWasFatal = false;
 
                 $ack = function () use ($deliveryTag, &$responseSent): void {
                     $this->channel->basic_ack($deliveryTag);
@@ -193,9 +206,22 @@ final class DefaultConsumer implements Consumer
                     // @todo, should we handle exceptions ourselves?
                     //   I guess not, it probably should be forwarded to a custom
                     //   user-registered error handler.
+                } catch (\Throwable $e) {
+                    // @todo we should catch at least protocol errors, deconnection
+                    //   and such and do not allow user error for those. For example,
+                    //   on a deconnection, we should just break here.
+                    if ($this->onError) {
+                        \call_user_func($this->onError, $e, $message);
+                    } else {
+                        $errorWasFatal = true;
+                        throw $e;
+                    }
                 } finally {
                     if (!$responseSent) {
-                        $this->channel->basic_reject($deliveryTag, true);
+                        // Do not requeue if error was fatal and unhandled.
+                        // Message will go to any dead letter queue it was
+                        // supposed to go.
+                        $this->channel->basic_reject($deliveryTag, !$errorWasFatal);
                     }
                 }
             }
@@ -209,7 +235,28 @@ final class DefaultConsumer implements Consumer
     {
         $queueName = $this->prepareQueue();
 
-        $this->channel->basic_consume($queueName, '', false, true, false, false, $this->onMessage);
+        $this->channel->basic_consume($queueName, '', false, true, false, false,
+            // We wrap user handler for error handling.
+            function (AMQPMessage $message): void {
+                try {
+                    // Pass no-op functions along in case the user got the wrong
+                    // signature.
+                    \call_user_func(
+                        $this->onMessage,
+                        static function (): void {
+                            throw new \LogicException("You cannot call \$ack(), ack is disabled.");
+                        },
+                        static function (): void {
+                            throw new \LogicException("You cannot call \$reject(), ack is disabled.");
+                        }
+                    );
+                } catch (\Throwable $e) {
+                    if ($this->onError) {
+                        \call_user_func($this->onError, $e, $message);
+                    }
+                }
+            }
+        );
     }
 
     /**

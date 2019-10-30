@@ -75,7 +75,7 @@ final class FanoutSubscriberSampleCommand extends Command
         $this
             ->factory
             ->createFanoutSubscriber($exchange)
-            ->callback(function (AMQPMessage $message) use ($output, $showHeaders) {
+            ->onMessage(function (AMQPMessage $message) use ($output, $showHeaders) {
                 if ($showHeaders) {
                     $output->writeln(\sprintf("[%s] message received:", (new \DateTime())->format('Y-m-d H:i:s')));
                     $output->writeln($this->formatProperty('properties', $message->get_properties()));

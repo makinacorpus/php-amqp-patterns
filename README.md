@@ -129,7 +129,7 @@ $factory
     // This is the name of the exchange
     ->createSubscriber('user.message')
     // Callback is what your business will do upon message received
-    ->callback(function (AMQPMessage $message) use ($output) {
+    ->onMessage(function (AMQPMessage $message) use ($output) {
         echo \sprintf("[%s] %s", (new \DateTime())->format('Y-m-d H:i:s'), $message->body));
     })
     // By calling this method, you enable graceful shutdown when process gets
@@ -202,6 +202,8 @@ First step is to start one or more workers:
 ```sh
 bin/run-sample amqp-pattern:sample:task-worker \
     --exchange=my_direct_exchange \
+    --queue=some_queue \
+    --binding-key=my_task_queue \
     --queue=my_task_queue
 ```
 
