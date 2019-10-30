@@ -7,14 +7,7 @@ namespace MakinaCorpus\AMQP\Patterns;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
- * Consumer for the worker pattern from RabbitMQ documentation.
- *
- * If you don't specify an exchange, default will be "amq.direct".
- *
- * In this pattern implementation, we do not bind any queue to the exchange,
- * it wouldn't mean anything, we just send those messages into this queue.
- *
- * @see https://www.rabbitmq.com/tutorials/tutorial-two-php.html
+ * Consumer implementation with error handling.
  */
 final class DefaultConsumer implements Consumer
 {
@@ -163,7 +156,8 @@ final class DefaultConsumer implements Consumer
         $this->channel->basic_consume(
             $queueName, '', false, false, false, false,
 
-            // What happens when a message is received.
+            // We wrap user handler with a more advanced one that will always
+            // fallback with ack/reject handling.
             function (AMQPMessage $message): void {
                 $deliveryTag = $message->getDeliveryTag();
 
