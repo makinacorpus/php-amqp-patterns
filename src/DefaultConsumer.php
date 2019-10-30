@@ -153,6 +153,12 @@ final class DefaultConsumer implements Consumer
     {
         $queueName = $this->prepareQueue();
 
+        // This should be configurable, but it's actually common sense to avoid
+        // giving more than one message to one consumer: if we don't, when we
+        // start another consumer, it won't get any work to do since eveything
+        // will be already given to a single consumer.
+        $this->channel->basic_qos(null, 1, null);
+
         $this->channel->basic_consume(
             $queueName, '', false, false, false, false,
 
