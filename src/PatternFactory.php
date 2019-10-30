@@ -22,6 +22,11 @@ final class PatternFactory
         'user' => 'guest',
         'password' => 'guest',
         'vhost' => null,
+        // All options here are passed as-is to php-amqplib connection.
+        'options' => [
+            'lazy' => false,
+            'timeout' => 5,
+        ],
     ];
 
     /** @var string[][] */
@@ -38,15 +43,14 @@ final class PatternFactory
      */
     public function __construct(array $hostList = [], bool $randomizeHostList = false)
     {
+        // Prune empty values with array_filter(), allowing fully automatic
+        // configuration in Symfony with environement variables, without any
+        // compiler pass or extension required.
+        $hostList = \array_filter($hostList);
         if (!$hostList) {
             $this->hostList[] = self::DEFAULT_HOST;
         } else {
-            $hostList = \array_map(
-                static function (array $host) {
-                    return $host + self::DEFAULT_HOST;
-                },
-                $hostList
-            );
+            $hostList = \array_map([Normalize::class, 'normalizeHost'], $hostList);
             if ($randomizeHostList) {
                 \shuffle($hostList);
             }

@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use MakinaCorpus\AMQP\Patterns\PatternFactory;
-use MakinaCorpus\AMQP\Patterns\Sample\Env;
 use MakinaCorpus\AMQP\Patterns\Sample\FanoutPublisherSampleCommand;
 use MakinaCorpus\AMQP\Patterns\Sample\FanoutSubscriberSampleCommand;
 use MakinaCorpus\AMQP\Patterns\Sample\TaskPublisherSampleCommand;
@@ -27,21 +26,7 @@ foreach (['.env', '.env.dist'] as $candidate) {
     }
 }
 
-$host = [];
-if ($value = \getenv(Env::SERVER_HOST)) {
-    $host['host'] = $value;
-}
-if ($value = \getenv(Env::SERVER_PASSWORD)) {
-    $host['password'] = $value;
-}
-if ($value = \getenv(Env::SERVER_PORT)) {
-    $host['port'] = $value;
-}
-if ($value = \getenv(Env::SERVER_USER)) {
-    $host['user'] = $value;
-}
-
-$factory = new PatternFactory([$host]);
+$factory = new PatternFactory(["amqp://guest:guest@127.0.0.1:5672/?lazy=false&timeout=5"]);
 
 $application = new Application("AMQP patterns samples");
 $application->add(new FanoutPublisherSampleCommand($factory));
