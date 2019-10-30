@@ -4,7 +4,7 @@
     "description": "Implementation of some AMQP 9.1 well known patterns using php-amqplib",
     "keywords": ["amqp", "rabbitmq", "message-broker"],
     "homepage": "http://github.com/makinacorpus/php-amqp-patterns",
-    "license": "GPL-2",
+    "license": "GPL-2.0-or-later",
     "authors": [
         {
             "name" : "Pierre RINEAU",
