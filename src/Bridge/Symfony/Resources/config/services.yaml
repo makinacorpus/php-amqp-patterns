@@ -1,0 +1,77 @@
+parameters:
+
+    # Pre-define 9 slots for AMQP dsns: per default, all will be used for the
+    # default' connection. If any is empty, it will be dynamically be removed
+    # from connection array at runtime.
+    #
+    # Using environement variables allows the system configuration to change
+    # without the need of recompiling the kernel.
+    #
+    # Trailing / is the actual 'vhost' value.
+    #
+    # All parameters after '?' are raw options that will be given to php-ampqlib
+    # connection object without any validation. "false" and "true" strings will
+    # be converted to their respective PHP bool values, numerical values will be
+    # converted to int or float accordingly.
+    env(AMQP_HOST_1): "amqp://guest:guest@127.0.0.1:5672/?lazy=false&timeout=5"
+    env(AMQP_HOST_2): ~
+    env(AMQP_HOST_3): ~
+    env(AMQP_HOST_4): ~
+    env(AMQP_HOST_5): ~
+    env(AMQP_HOST_6): ~
+    env(AMQP_HOST_7): ~
+    env(AMQP_HOST_8): ~
+    env(AMQP_HOST_9): ~ 
+
+    # Application internal route, should be a direct exchange. It should be
+    # durable as well, and messages should be sent persistent.
+    #
+    # All workers will need to be plugged on the same queue, name is hardcoded
+    # and is "internal_messages", it will be set to durable as well. Routing
+    # key is hardcoded as well and named after the queue, which means that you
+    # plug any other workers, even in fanout-like mode (logging or monitoring
+    # for example) bound to this same routing key.
+    #
+    # Override this in your own config/services.yaml for changing it.
+    env(AMQP_INTERNAL_EXCHANGE): app
+
+    # Routes files, we should use container configuration instead, but really
+    # this make the code much lighter since we do not need to write a
+    # configuration.
+    #
+    # Values much be project root (where the composer.json stands) relative and
+    # point to yaml files containing routes.
+    amqp_patterns.route_map.files: []
+
+services:
+
+    amqp_patterns.factory.default:
+        public: true
+        autowire: false
+        class: MakinaCorpus\AMQP\Patterns\PatternFactory
+        arguments:
+            - "%env(string:AMQP_HOST_1)%"
+            - "%env(string:AMQP_HOST_2)%"
+            - "%env(string:AMQP_HOST_3)%"
+            - "%env(string:AMQP_HOST_4)%"
+            - "%env(string:AMQP_HOST_5)%"
+            - "%env(string:AMQP_HOST_6)%"
+            - "%env(string:AMQP_HOST_7)%"
+            - "%env(string:AMQP_HOST_8)%"
+            - "%env(string:AMQP_HOST_9)%"
+
+    MakinaCorpus\AMQP\Patterns\PatternFactory:
+        alias: amqp_patterns.factory.default
+
+    amqp_patterns.route_map.default:
+        public: true
+        autowire: false
+        class: MakinaCorpus\AMQP\Patterns\Routing\DefaultRouteMap
+        calls: [[setDefaultExchange, ["%env(AMQP_INTERNAL_EXCHANGE)%"]]]
+        arguments: [] # Set by a compiler pass.
+
+    amqp_patterns.route_map:
+        alias: amqp_patterns.route_map.default
+
+    MakinaCorpus\AMQP\Patterns\Routing\RouteMap:
+        alias: amqp_patterns.route_map

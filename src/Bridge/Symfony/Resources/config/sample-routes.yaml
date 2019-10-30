@@ -1,0 +1,5 @@
+IrpAuto\Messages\Aavant\Event\AavantUserComment:
+    content_type: application/json
+    durable: true
+    exchange_type: topic
+    routing_key: aavant.user.comment
