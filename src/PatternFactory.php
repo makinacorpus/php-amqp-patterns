@@ -30,6 +30,9 @@ final class PatternFactory
     /** @var AMQPStreamConnection */
     private $connection;
 
+    /** @var bool */
+    private $doDeclareExchanges = true;
+
     /**
      * Default constructor
      */
@@ -49,6 +52,14 @@ final class PatternFactory
             }
             $this->hostList = $hostList;
         }
+    }
+
+    /**
+     * Set auto-declare exchanges parameter.
+     */
+    public function autoDeclareExchanges(bool $toggle = true)
+    {
+        $this->doDeclareExchanges = $toggle;
     }
 
     /**
@@ -118,6 +129,8 @@ final class PatternFactory
         return $this
             ->createPublisher($exchange)
             ->exchangeType(self::EXCHANGE_TOPIC)
+            ->exchangeIsDurable(true)
+            ->doDeclareExchange($this->doDeclareExchanges)
         ;
     }
 
@@ -129,45 +142,61 @@ final class PatternFactory
     {
         return $this
             ->createConsumer($exchange)
-            ->exchangeType(self::EXCHANGE_TOPIC)
-            ->queue($queueName)
+            ->withAck(true)
             ->bindingKeys($bindingKeys)
-            ->withAck()
+            ->queue($queueName)
+            ->exchangeType(self::EXCHANGE_TOPIC)
+            ->exchangeIsDurable(true)
+            ->doDeclareExchange($this->doDeclareExchanges)
         ;
     }
 
     /**
-     * Create task publisher. Routing key here must be a queue name.
+     * Create task publisher. Routing key is the default routing key if none
+     * specified when publish() is called.
      */
-    public function createTaskPublisher(string $routingKey, ?string $exchange = null): Publisher
+    public function createTaskPublisher(string $exchange, ?string $routingKey = null): Publisher
     {
         return $this
             ->createPublisher($exchange)
             ->defaultRoutingKey($routingKey)
             ->exchangeType(self::EXCHANGE_DIRECT)
             ->exchangeIsDurable(true)
-            ->doDeclareExchange(true)
+            ->doDeclareExchange($this->doDeclareExchanges)
         ;
     }
 
     /**
      * Create task worker.
+     *
+     * Worker will do ack/reject calls, and work on a queue bound to given
+     * bouding keys.
+     *
+     * Queue name is optional, but if you need to setup multiple consumers
+     * for processing in parallel the same type of message while ensuring they
+     * are consumed only once, you must set them all on the same queue, no
+     * matter what the bounding keys are.
      */
     public function createTaskWorker(string $exchange, array $bindingKeys, ?string $queueName = null): Consumer
     {
         return $this
             ->createConsumer($exchange)
-            ->withAck()
+            ->withAck(true)
             ->bindingKeys($bindingKeys)
             ->queue($queueName)
             ->exchangeType(self::EXCHANGE_DIRECT)
             ->exchangeIsDurable(true)
-            ->doDeclareExchange(true)
+            ->doDeclareExchange($this->doDeclareExchanges)
         ;
     }
 
     /**
      * Create publish/subscribe-like publisher.
+     *
+     * It must be plugged onto a fanout exchange.
+     *
+     * It's probably a bad idea to use fanout exchanges, topic exchanges will
+     * allow you to have a much more powerful and flexible routing scheme.
      */
     public function createFanoutPublisher(string $exchange, ?array $bindingKeys = null): Publisher
     {
@@ -175,12 +204,17 @@ final class PatternFactory
             ->createPublisher($exchange)
             ->exchangeType(self::EXCHANGE_FANOUT)
             ->exchangeIsDurable(false)
-            ->doDeclareExchange(true)
+            ->doDeclareExchange($this->doDeclareExchanges)
         ;
     }
 
     /**
      * Create publish/subscribe-like subscriber.
+     *
+     * It must be plugged onto a fanout exchange.
+     *
+     * It's probably a bad idea to use fanout exchanges, topic exchanges will
+     * allow you to have a much more powerful and flexible routing scheme.
      */
     public function createFanoutSubscriber(string $exchange): Consumer
     {
@@ -189,7 +223,7 @@ final class PatternFactory
             ->withAck(false)
             ->exchangeType(self::EXCHANGE_FANOUT)
             ->exchangeIsDurable(false)
-            ->doDeclareExchange(true)
+            ->doDeclareExchange($this->doDeclareExchanges)
         ;
     }
 }

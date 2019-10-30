@@ -36,7 +36,7 @@ final class DefaultConsumer implements Consumer
         $this->raiseErrorIfRunning();
 
         if ($this->onMessage) {
-            throw new \LogicException("You cannot call ::callback() twice");
+            throw new \LogicException(\sprintf("You cannot call %s::onMessage() twice", __CLASS__));
         }
 
         $this->onMessage = $onMessage;
@@ -221,6 +221,7 @@ final class DefaultConsumer implements Consumer
                         // Do not requeue if error was fatal and unhandled.
                         // Message will go to any dead letter queue it was
                         // supposed to go.
+                        // @todo this should be configurable maybe? 
                         $this->channel->basic_reject($deliveryTag, !$errorWasFatal);
                     }
                 }
@@ -239,8 +240,6 @@ final class DefaultConsumer implements Consumer
             // We wrap user handler for error handling.
             function (AMQPMessage $message): void {
                 try {
-                    // Pass no-op functions along in case the user got the wrong
-                    // signature.
                     \call_user_func(
                         $this->onMessage,
                         static function (): void {
@@ -265,10 +264,12 @@ final class DefaultConsumer implements Consumer
     final public function run(): void
     {
         if (!$this->onMessage) {
-            throw new \LogicException("You must call the ::callback() function prior running the subscriber");
+            throw new \LogicException(\sprintf("You must call the %s::onMessage() function prior running the subscriber", __CLASS__));
         }
 
-        $this->raiseErrorIfRunning();
+        if ($this->running) {
+            return;
+        }
 
         if ($this->withAck) {
             $this->consumeWithAck();
