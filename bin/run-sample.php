@@ -21,7 +21,7 @@ if (!class_exists(Dotenv::class)) {
 foreach (['.env', '.env.dist'] as $candidate) {
     $filename = dirname(__DIR__).'/'.$candidate;
     if (file_exists($filename)) {
-        (new Dotenv())->load($filename);
+        (new Dotenv(false))->load($filename);
         break;
     }
 }

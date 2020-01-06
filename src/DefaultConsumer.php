@@ -242,6 +242,7 @@ final class DefaultConsumer implements Consumer
                 try {
                     \call_user_func(
                         $this->onMessage,
+                        $message,
                         static function (): void {
                             throw new \LogicException("You cannot call \$ack(), ack is disabled.");
                         },

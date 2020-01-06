@@ -8,15 +8,17 @@ use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
- * Consumer for the worker pattern from RabbitMQ documentation.
+ * Default publisher implementation, implement most patterns.
+ *
+ * Only RPC and Publisher Confirms patterns from RabbitMQ documentation
+ * will need a different publisher implementation.
  *
  * If you don't specify an exchange, default will be "amq.direct".
  *
- * In this pattern implementation, we do not bind any queue to the exchange,
- * it wouldn't mean anything, we just send those messages into this queue.
- * For advanced routing, use RoutingTaskWorker.
- *
  * @see https://www.rabbitmq.com/tutorials/tutorial-two-php.html
+ * @see https://www.rabbitmq.com/tutorials/tutorial-three-php.html
+ * @see https://www.rabbitmq.com/tutorials/tutorial-four-php.html
+ * @see https://www.rabbitmq.com/tutorials/tutorial-five-php.html
  */
 final class DefaultPublisher implements Publisher
 {

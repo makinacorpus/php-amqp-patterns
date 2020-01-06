@@ -1,7 +1,7 @@
 parameters:
 
-    # Pre-define 9 slots for AMQP dsns: per default, all will be used for the
-    # default' connection. If any is empty, it will be dynamically be removed
+    # Pre-define 9 slots for AMQP DSNs: per default, all will be used for the
+    # 'default' connection. If any is empty, it will be dynamically be removed
     # from connection array at runtime.
     #
     # Using environement variables allows the system configuration to change
@@ -35,6 +35,12 @@ parameters:
     # Override this in your own config/services.yaml for changing it.
     env(AMQP_INTERNAL_EXCHANGE): app
 
+    # Set this to false if you do not wish code to automatically declare
+    # exchanges. It will lower the numbers of network roundtrips due to the
+    # protocol but needs you to manually declare every exchange you need in
+    # your broker.
+    amqp_patterns.declare_exchanges: true
+
     # Routes files, we should use container configuration instead, but really
     # this make the code much lighter since we do not need to write a
     # configuration.
@@ -49,6 +55,7 @@ services:
         public: true
         autowire: false
         class: MakinaCorpus\AMQP\Patterns\PatternFactory
+        calls: [[autoDeclareExchanges, ["%amqp_patterns.declare_exchanges%"]]]
         arguments:
             - "%env(string:AMQP_HOST_1)%"
             - "%env(string:AMQP_HOST_2)%"
